@@ -148,7 +148,7 @@ UI_HTML = """<!doctype html>
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
       background: radial-gradient(circle at top right, #e0ecff, var(--bg) 35%);
       color: var(--text);
       line-height: 1.45;
@@ -573,8 +573,8 @@ UI_HTML = """<!doctype html>
         });
         entriesBody.appendChild(tr);
       }
-      const count = (payload.entries || []).length;
-      entryCountEl.textContent = `${count} entr${count === 1 ? "y" : "ies"}`;
+      const entryCount = (payload.entries || []).length;
+      entryCountEl.textContent = `${entryCount} entr${entryCount === 1 ? "y" : "ies"}`;
     }
 
     async function saveEntry() {
