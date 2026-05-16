@@ -55,6 +55,12 @@ docker run --rm -p 8080:8080 \
   infinite-context-mcp
 ```
 
+Or use Docker Compose:
+
+```bash
+docker compose up --build
+```
+
 ## Main endpoints
 
 - `POST /oauth/token`

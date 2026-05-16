@@ -1,0 +1,16 @@
+services:
+  infinite-context-mcp:
+    build:
+      context: .
+    image: infinite-context-mcp
+    ports:
+      - "8080:8080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      OAUTH_SIGNING_KEY: replace-me
+      MCP_CLIENTS: >-
+        {"grok":{"secret":"grok-secret","agent_id":"grok","scopes":["contexts.read","contexts.write"]}}
+      DATA_PATH: /data/contexts.json
+    volumes:
+      - ./data:/data
