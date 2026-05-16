@@ -216,7 +216,7 @@ class ServerTestCase(unittest.TestCase):
     def test_context_management_api_supports_search_filter_and_delete(self) -> None:
         token = self.token_for("grok", "grok-secret")
 
-        status, _ = self.api_call(
+        status, payload = self.api_call(
             "POST",
             "/api/contexts",
             {
@@ -229,8 +229,12 @@ class ServerTestCase(unittest.TestCase):
             token=token,
         )
         self.assertEqual(status, 200)
+        self.assertEqual(payload["visibility"], "private")
+        self.assertEqual(payload["agent_id"], "grok")
+        self.assertEqual(payload["space"], "planning")
+        self.assertEqual(payload["key"], "draft")
 
-        status, _ = self.api_call(
+        status, payload = self.api_call(
             "POST",
             "/api/contexts",
             {
@@ -243,8 +247,11 @@ class ServerTestCase(unittest.TestCase):
             token=token,
         )
         self.assertEqual(status, 200)
+        self.assertEqual(payload["visibility"], "private")
+        self.assertEqual(payload["agent_id"], "copilot")
+        self.assertEqual(payload["key"], "summary")
 
-        status, _ = self.api_call(
+        status, payload = self.api_call(
             "POST",
             "/api/contexts",
             {
@@ -256,6 +263,9 @@ class ServerTestCase(unittest.TestCase):
             token=token,
         )
         self.assertEqual(status, 200)
+        self.assertEqual(payload["visibility"], "shared")
+        self.assertIsNone(payload["agent_id"])
+        self.assertEqual(payload["key"], "announcement")
 
         status, payload = self.api_call("GET", "/api/contexts?agent_id=grok", token=token)
         self.assertEqual(status, 200)
