@@ -65,6 +65,24 @@ class ServerTestCase(unittest.TestCase):
             payload = json.loads(response.read().decode("utf-8"))
         return payload["access_token"]
 
+    def test_token_endpoint_accepts_trailing_slash(self) -> None:
+        encoded = parse.urlencode(
+            {
+                "grant_type": "client_credentials",
+                "client_id": "grok",
+                "client_secret": "grok-secret",
+            }
+        ).encode("utf-8")
+        req = request.Request(
+            f"{self.base_url}/oauth/token/",
+            data=encoded,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with request.urlopen(req) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        self.assertIn("access_token", payload)
+
     def mcp_call(self, token: str, method: str, params: dict[str, object] | None = None) -> dict[str, object]:
         req = request.Request(
             f"{self.base_url}/mcp",
