@@ -58,6 +58,7 @@ docker run --rm -p 8080:8080 \
 Or use Docker Compose:
 
 ```bash
+# set OAUTH_SIGNING_KEY and MCP_CLIENTS in your shell or a .env file first
 docker compose up --build
 ```
 

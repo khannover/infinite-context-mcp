@@ -6,11 +6,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      HOST: 0.0.0.0
-      PORT: 8080
-      OAUTH_SIGNING_KEY: replace-me
-      MCP_CLIENTS: >-
-        {"grok":{"secret":"grok-secret","agent_id":"grok","scopes":["contexts.read","contexts.write"]}}
-      DATA_PATH: /data/contexts.json
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${PORT:-8080}
+      DATA_PATH: ${DATA_PATH:-/data/contexts.json}
+      OAUTH_SIGNING_KEY: ${OAUTH_SIGNING_KEY:?Set OAUTH_SIGNING_KEY in your environment or .env file}
+      MCP_CLIENTS: ${MCP_CLIENTS:?Set MCP_CLIENTS in your environment or .env file}
     volumes:
       - ./data:/data
