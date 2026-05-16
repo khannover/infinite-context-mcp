@@ -700,7 +700,7 @@ def create_handler(settings: Settings, store: ContextStore):
 
         def do_POST(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
-            if parsed.path == "/oauth/token":
+            if parsed.path in {"/oauth/token", "/oauth/token/"}:
                 self._handle_token()
                 return
             if parsed.path == "/mcp":
