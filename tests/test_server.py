@@ -7,6 +7,7 @@ import time
 import unittest
 from pathlib import Path
 from urllib import parse, request
+from urllib.error import HTTPError
 
 from infinite_context_mcp.config import Settings
 from infinite_context_mcp.server import create_server
@@ -78,6 +79,32 @@ class ServerTestCase(unittest.TestCase):
         )
         with request.urlopen(req) as response:
             return json.loads(response.read().decode("utf-8"))
+
+    def api_call(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, object] | None = None,
+        token: str | None = None,
+    ) -> tuple[int, dict[str, object]]:
+        data = None
+        headers = {}
+        if payload is not None:
+            data = json.dumps(payload).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        req = request.Request(
+            f"{self.base_url}{path}",
+            data=data,
+            headers=headers,
+            method=method,
+        )
+        try:
+            with request.urlopen(req) as response:
+                return response.status, json.loads(response.read().decode("utf-8"))
+        except HTTPError as error:
+            return error.code, json.loads(error.read().decode("utf-8"))
 
     def test_private_contexts_are_isolated_by_agent(self) -> None:
         grok_token = self.token_for("grok", "grok-secret")
@@ -185,6 +212,96 @@ class ServerTestCase(unittest.TestCase):
         tools = self.mcp_call(token, "tools/list")
         tool_names = {tool["name"] for tool in tools["result"]["tools"]}
         self.assertIn("context_change_visibility", tool_names)
+
+    def test_context_management_api_supports_search_filter_and_delete(self) -> None:
+        token = self.token_for("grok", "grok-secret")
+
+        status, payload = self.api_call(
+            "POST",
+            "/api/contexts",
+            {
+                "visibility": "private",
+                "agent_id": "grok",
+                "space": "planning",
+                "key": "draft",
+                "value": {"topic": "release"},
+            },
+            token=token,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["visibility"], "private")
+        self.assertEqual(payload["agent_id"], "grok")
+        self.assertEqual(payload["space"], "planning")
+        self.assertEqual(payload["key"], "draft")
+
+        status, payload = self.api_call(
+            "POST",
+            "/api/contexts",
+            {
+                "visibility": "private",
+                "agent_id": "copilot",
+                "space": "planning",
+                "key": "summary",
+                "value": {"topic": "handoff"},
+            },
+            token=token,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["visibility"], "private")
+        self.assertEqual(payload["agent_id"], "copilot")
+        self.assertEqual(payload["key"], "summary")
+
+        status, payload = self.api_call(
+            "POST",
+            "/api/contexts",
+            {
+                "visibility": "shared",
+                "space": "global",
+                "key": "announcement",
+                "value": {"topic": "release"},
+            },
+            token=token,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["visibility"], "shared")
+        self.assertIsNone(payload["agent_id"])
+        self.assertEqual(payload["key"], "announcement")
+
+        status, payload = self.api_call("GET", "/api/contexts?agent_id=grok", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(payload["entries"]), 1)
+        self.assertEqual(payload["entries"][0]["agent_id"], "grok")
+        self.assertEqual(payload["entries"][0]["visibility"], "private")
+        self.assertEqual([entry["key"] for entry in payload["entries"]], ["draft"])
+        self.assertIn("grok", payload["available_ai"])
+        self.assertIn("copilot", payload["available_ai"])
+
+        status, payload = self.api_call("GET", "/api/contexts?q=handoff", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(payload["entries"]), 1)
+        self.assertEqual(payload["entries"][0]["key"], "summary")
+        self.assertEqual(payload["entries"][0]["agent_id"], "copilot")
+
+        status, _ = self.api_call(
+            "DELETE",
+            "/api/contexts?visibility=private&agent_id=grok&space=planning&key=draft",
+            token=token,
+        )
+        self.assertEqual(status, 200)
+
+        status, payload = self.api_call("GET", "/api/contexts?agent_id=grok", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["entries"], [])
+
+    def test_context_management_api_requires_authentication(self) -> None:
+        status, payload = self.api_call("GET", "/api/contexts")
+        self.assertEqual(status, 401)
+        self.assertEqual(payload["error"], "unauthorized")
+
+    def test_ui_page_is_exposed(self) -> None:
+        with request.urlopen(f"{self.base_url}/ui") as response:
+            body = response.read().decode("utf-8")
+        self.assertIn("Infinite Context Manager", body)
 
 
 if __name__ == "__main__":

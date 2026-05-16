@@ -11,6 +11,12 @@ def _default_state() -> dict[str, object]:
     return {"private": {}, "shared": {}}
 
 
+def _normalize_visibility(visibility: str) -> str:
+    if visibility not in {"private", "shared"}:
+        raise ValueError("Visibility must be 'private' or 'shared'")
+    return visibility
+
+
 class ContextStore:
     def __init__(self, path: str) -> None:
         self.path = Path(path)
@@ -42,27 +48,39 @@ class ContextStore:
         value: object,
     ) -> dict[str, object]:
         with self._lock:
-            if visibility == "shared":
+            resolved_visibility = _normalize_visibility(visibility)
+            if resolved_visibility == "shared":
                 namespace = self._state["shared"]
             else:
                 namespace = self._state["private"].setdefault(agent_id, {})
             namespace.setdefault(space, {})[key] = value
             self._save()
-            return {"visibility": visibility, "space": space, "key": key, "value": value}
+            return {
+                "visibility": resolved_visibility,
+                "space": space,
+                "key": key,
+                "value": value,
+            }
 
     def get(
         self, *, agent_id: str, visibility: str, space: str, key: str
     ) -> dict[str, object] | None:
         with self._lock:
+            resolved_visibility = _normalize_visibility(visibility)
             namespace = (
                 self._state["shared"]
-                if visibility == "shared"
+                if resolved_visibility == "shared"
                 else self._state["private"].get(agent_id, {})
             )
             value = namespace.get(space, {}).get(key)
             if value is None and key not in namespace.get(space, {}):
                 return None
-            return {"visibility": visibility, "space": space, "key": key, "value": value}
+            return {
+                "visibility": resolved_visibility,
+                "space": space,
+                "key": key,
+                "value": value,
+            }
 
     def list_accessible(self, *, agent_id: str) -> dict[str, object]:
         with self._lock:
@@ -83,17 +101,21 @@ class ContextStore:
         remove_source: bool,
     ) -> dict[str, object]:
         with self._lock:
+            resolved_from_visibility = _normalize_visibility(from_visibility)
+            resolved_to_visibility = _normalize_visibility(to_visibility)
             source_namespace = (
                 self._state["shared"]
-                if from_visibility == "shared"
+                if resolved_from_visibility == "shared"
                 else self._state["private"].get(agent_id, {})
             )
             if key not in source_namespace.get(space, {}):
-                raise KeyError(f"Context '{key}' was not found in {from_visibility}:{space}")
+                raise KeyError(
+                    f"Context '{key}' was not found in {resolved_from_visibility}:{space}"
+                )
             value = source_namespace[space][key]
             destination_namespace = (
                 self._state["shared"]
-                if to_visibility == "shared"
+                if resolved_to_visibility == "shared"
                 else self._state["private"].setdefault(agent_id, {})
             )
             destination_namespace.setdefault(target_space, {})[key] = value
@@ -105,9 +127,67 @@ class ContextStore:
             return {
                 "key": key,
                 "value": value,
-                "from_visibility": from_visibility,
-                "to_visibility": to_visibility,
+                "from_visibility": resolved_from_visibility,
+                "to_visibility": resolved_to_visibility,
                 "space": space,
                 "target_space": target_space,
                 "remove_source": remove_source,
             }
+
+    def delete(
+        self,
+        *,
+        agent_id: str,
+        visibility: str,
+        space: str,
+        key: str,
+    ) -> dict[str, object]:
+        with self._lock:
+            resolved_visibility = _normalize_visibility(visibility)
+            namespace = (
+                self._state["shared"]
+                if resolved_visibility == "shared"
+                else self._state["private"].get(agent_id, {})
+            )
+            if key not in namespace.get(space, {}):
+                raise KeyError(f"Context '{key}' was not found in {resolved_visibility}:{space}")
+            value = namespace[space][key]
+            del namespace[space][key]
+            if not namespace[space]:
+                del namespace[space]
+            self._save()
+            return {
+                "visibility": resolved_visibility,
+                "space": space,
+                "key": key,
+                "value": value,
+                "deleted": True,
+            }
+
+    def list_all_entries(self) -> list[dict[str, object]]:
+        with self._lock:
+            entries: list[dict[str, object]] = []
+            for agent_id, spaces in self._state["private"].items():
+                for space, items in spaces.items():
+                    for key, value in items.items():
+                        entries.append(
+                            {
+                                "visibility": "private",
+                                "agent_id": agent_id,
+                                "space": space,
+                                "key": key,
+                                "value": value,
+                            }
+                        )
+            for space, items in self._state["shared"].items():
+                for key, value in items.items():
+                    entries.append(
+                        {
+                            "visibility": "shared",
+                            "agent_id": None,
+                            "space": space,
+                            "key": key,
+                            "value": value,
+                        }
+                    )
+            return entries

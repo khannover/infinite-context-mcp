@@ -59,9 +59,24 @@ docker run --rm -p 8080:8080 \
 
 - `POST /oauth/token`
 - `POST /mcp`
+- `GET /ui`
+- `GET|POST|PUT|DELETE /api/contexts`
 - `GET /.well-known/oauth-authorization-server`
 - `GET /connectors/grok`
 - `GET /health`
+
+## Human context manager UI
+
+Open `/ui` in a browser to manage contexts directly.
+
+Features:
+- add/update entries in private or shared visibility
+- delete entries
+- filter by AI identity
+- free-text search over AI, space, key, and JSON value
+- API calls require a valid bearer token with `contexts.read` or `contexts.write` scope
+
+`POST /api/contexts` and `PUT /api/contexts` both perform upsert behavior.
 
 ## MCP tools
 
