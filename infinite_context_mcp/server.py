@@ -128,81 +128,311 @@ UI_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Infinite Context Manager</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 1rem auto; max-width: 1100px; padding: 0 1rem; }
-    .row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
-    input, select, textarea, button { font: inherit; padding: 0.5rem; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; vertical-align: top; }
-    th { background: #f5f5f5; }
-    textarea { min-width: 260px; min-height: 90px; }
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #607086;
+      --line: #d7dce5;
+      --brand: #2563eb;
+      --brand-soft: #dbeafe;
+      --danger: #b42318;
+      --danger-soft: #fee4e2;
+      --ok: #067647;
+      --ok-soft: #d1fadf;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top right, #e0ecff, var(--bg) 35%);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 2rem auto 3rem;
+      padding: 0 1rem;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #1d4ed8, #2563eb 55%, #1e40af);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 1.3rem 1.4rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1rem;
+    }
+    .hero h1 { margin: 0 0 0.35rem; font-size: 1.6rem; }
+    .hero p { margin: 0; opacity: 0.95; }
+
+    .hint {
+      background: #eef4ff;
+      border: 1px solid #c7dbff;
+      color: #123768;
+      border-radius: 12px;
+      padding: 0.8rem 0.9rem;
+      margin-top: 0.9rem;
+      font-size: 0.95rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 1fr) minmax(380px, 1.4fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1rem;
+    }
+
+    h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1.2rem;
+    }
+
+    .subtitle {
+      margin: 0 0 0.9rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+
+    label {
+      display: grid;
+      gap: 0.3rem;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+      min-width: 120px;
+      flex: 1;
+    }
+
+    input, select, textarea, button {
+      font: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 0.55rem 0.6rem;
+      background: #fff;
+      color: var(--text);
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid #bfd6ff;
+      border-color: #82adff;
+    }
+
+    textarea {
+      min-width: 260px;
+      min-height: 130px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
+
     .grow { flex: 1; min-width: 220px; }
-    .muted { color: #666; font-size: 0.9rem; }
-    .danger { color: #a40000; }
+    .small { min-width: 180px; max-width: 250px; }
+
+    button {
+      cursor: pointer;
+      font-weight: 650;
+      transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+    button:hover { filter: brightness(0.98); }
+
+    .primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+    .secondary {
+      background: #f8f9fc;
+      color: #1f2a3d;
+    }
+    .danger {
+      background: var(--danger-soft);
+      border-color: #fecdca;
+      color: var(--danger);
+    }
+
+    .status {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 0.35rem 0.7rem;
+      font-size: 0.85rem;
+      background: #eef2f7;
+      color: #344054;
+    }
+    .status.ok {
+      background: var(--ok-soft);
+      color: var(--ok);
+    }
+    .status.error {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    th, td {
+      border-bottom: 1px solid #edf0f5;
+      padding: 0.6rem;
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.92rem;
+    }
+    th {
+      background: #f8fafc;
+      color: #344054;
+      font-weight: 700;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    tr:last-child td { border-bottom: 0; }
+    td pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-width: 420px;
+      font-size: 0.82rem;
+      background: #f8f9fb;
+      border: 1px solid #eceff4;
+      border-radius: 8px;
+      padding: 0.45rem 0.5rem;
+    }
+
+    .token-help {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .table-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin-bottom: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .page { margin-top: 1rem; }
+    }
   </style>
 </head>
 <body>
-  <h1>Infinite Context Manager</h1>
-  <p class="muted">Manage shared and private contexts for all registered AIs.</p>
-  <div class="row">
-    <label class="grow">OAuth token
-      <input id="authToken" class="grow" placeholder="Paste bearer token (contexts.read/contexts.write)" />
-    </label>
-  </div>
+  <main class="page">
+    <section class="hero">
+      <h1>Infinite Context Manager</h1>
+      <p>Manage private and shared context entries for all registered AI agents.</p>
+      <div class="hint">
+        Quick start: create a token from <code>/oauth/token</code>, paste it below, then save entries.
+      </div>
+    </section>
 
-  <h2>Create or Edit Entry</h2>
-  <div class="row">
-    <label>Visibility
-      <select id="visibility">
-        <option value="private">private</option>
-        <option value="shared">shared</option>
-      </select>
-    </label>
-    <label>Agent ID (required for private)
-      <input id="agentId" placeholder="e.g. grok" />
-    </label>
-    <label class="grow">Space
-      <input id="space" class="grow" placeholder="e.g. planning" />
-    </label>
-    <label class="grow">Key
-      <input id="key" class="grow" placeholder="e.g. summary" />
-    </label>
-  </div>
-  <div class="row">
-    <label class="grow">JSON value
-      <textarea id="value">{}</textarea>
-    </label>
-  </div>
-  <div class="row">
-    <button id="saveBtn">Save</button>
-    <span id="saveMessage" class="muted"></span>
-  </div>
+    <section class="card" style="margin-bottom: 1rem;">
+      <h2>1) Connect with your token</h2>
+      <p class="subtitle">You need a bearer token with <code>contexts.read</code> and <code>contexts.write</code>.</p>
+      <label class="grow">OAuth token
+        <input id="authToken" class="grow" placeholder="Paste token here (example: abc.def)" />
+      </label>
+      <p class="token-help">Tip: token is saved in your browser on this computer only.</p>
+    </section>
 
-  <h2>Entries</h2>
-  <div class="row">
-    <label>Filter by AI
-      <select id="filterAi">
-        <option value="">All</option>
-      </select>
-    </label>
-    <label class="grow">Search
-      <input id="searchQuery" class="grow" placeholder="Search space, key, AI, or value..." />
-    </label>
-    <button id="refreshBtn">Refresh</button>
-  </div>
+    <section class="layout">
+      <section class="card">
+        <h2>2) Create or edit an entry</h2>
+        <p class="subtitle">Fill the fields and click <strong>Save entry</strong>.</p>
+        <div class="row">
+          <label class="small">Visibility
+            <select id="visibility">
+              <option value="private">private</option>
+              <option value="shared">shared</option>
+            </select>
+          </label>
+          <label class="grow">Agent ID (required for private)
+            <input id="agentId" placeholder="Example: grok" />
+          </label>
+        </div>
+        <div class="row">
+          <label class="grow">Space
+            <input id="space" class="grow" placeholder="Example: planning" />
+          </label>
+          <label class="grow">Key
+            <input id="key" class="grow" placeholder="Example: summary" />
+          </label>
+        </div>
+        <div class="row">
+          <label class="grow">JSON value
+            <textarea id="value">{}</textarea>
+          </label>
+        </div>
+        <div class="row" style="align-items: center;">
+          <button id="saveBtn" class="primary">Save entry</button>
+          <span id="saveMessage" class="status">Waiting for action</span>
+        </div>
+      </section>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Visibility</th>
-        <th>AI</th>
-        <th>Space</th>
-        <th>Key</th>
-        <th>Value</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody id="entriesBody"></tbody>
-  </table>
+      <section class="card">
+        <div class="table-tools">
+          <div>
+            <h2 style="margin-bottom: 0;">3) Browse entries</h2>
+            <p class="subtitle" style="margin-bottom: 0;">Use filter/search and click refresh.</p>
+          </div>
+          <span id="entryCount" class="status">0 entries</span>
+        </div>
+        <div class="row">
+          <label class="small">Filter by AI
+            <select id="filterAi">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label class="grow">Search
+            <input id="searchQuery" class="grow" placeholder="Search AI, space, key, or JSON value..." />
+          </label>
+          <button id="refreshBtn" class="secondary">Refresh</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Visibility</th>
+              <th>AI</th>
+              <th>Space</th>
+              <th>Key</th>
+              <th>Value</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="entriesBody"></tbody>
+        </table>
+      </section>
+    </section>
+  </main>
 
   <script>
     const visibilityEl = document.getElementById("visibility");
@@ -217,10 +447,18 @@ UI_HTML = """<!doctype html>
     const searchQueryEl = document.getElementById("searchQuery");
     const refreshBtn = document.getElementById("refreshBtn");
     const entriesBody = document.getElementById("entriesBody");
+    const entryCountEl = document.getElementById("entryCount");
+
     authTokenEl.value = localStorage.getItem("context_manager_token") || "";
-    authTokenEl.addEventListener("change", () => {
+    authTokenEl.addEventListener("input", () => {
       localStorage.setItem("context_manager_token", authTokenEl.value.trim());
     });
+
+    function showMessage(text, level = "") {
+      saveMessage.textContent = text;
+      saveMessage.classList.remove("ok", "error");
+      if (level) saveMessage.classList.add(level);
+    }
 
     function updateAgentRequirement() {
       agentIdEl.disabled = visibilityEl.value === "shared";
@@ -261,7 +499,8 @@ UI_HTML = """<!doctype html>
       const authToken = normalizeToken();
       if (!authToken) {
         entriesBody.innerHTML = "";
-        saveMessage.textContent = "Set a valid OAuth token to load entries.";
+        entryCountEl.textContent = "0 entries";
+        showMessage("Set a valid OAuth token to load entries.", "error");
         return;
       }
       const params = new URLSearchParams();
@@ -273,10 +512,11 @@ UI_HTML = """<!doctype html>
       const payload = await response.json();
       if (!response.ok) {
         entriesBody.innerHTML = "";
-        saveMessage.textContent = payload.error || "Failed to load entries.";
+        entryCountEl.textContent = "0 entries";
+        showMessage(payload.error || "Failed to load entries.", "error");
         return;
       }
-      saveMessage.textContent = "";
+      showMessage("Entries loaded.", "ok");
 
       const existingFilter = filterAiEl.value;
       filterAiEl.innerHTML = '<option value="">All</option>';
@@ -299,7 +539,7 @@ UI_HTML = """<!doctype html>
           <td>${escapeHtml(entry.key)}</td>
           <td><pre>${escapeHtml(JSON.stringify(entry.value, null, 2))}</pre></td>
           <td>
-            <button data-action="edit">Edit</button>
+            <button data-action="edit" class="secondary">Edit</button>
             <button data-action="delete" class="danger">Delete</button>
           </td>
         `;
@@ -311,36 +551,44 @@ UI_HTML = """<!doctype html>
           keyEl.value = entry.key;
           valueEl.value = JSON.stringify(entry.value, null, 2);
           window.scrollTo({ top: 0, behavior: "smooth" });
+          showMessage("Entry loaded into form. Edit and click Save entry.", "ok");
         });
         tr.querySelector('[data-action="delete"]').addEventListener("click", async () => {
           if (!confirm("Delete this entry?")) return;
           const authToken = normalizeToken();
           if (!authToken) {
-            saveMessage.textContent = "A valid OAuth token is required.";
+            showMessage("A valid OAuth token is required.", "error");
             return;
           }
-          await fetch("/api/contexts?" + encodeEntry(entry), {
+          const removeResponse = await fetch("/api/contexts?" + encodeEntry(entry), {
             method: "DELETE",
             headers: { "Authorization": "Bearer " + authToken }
           });
+          if (!removeResponse.ok) {
+            showMessage("Failed to delete entry.", "error");
+            return;
+          }
+          showMessage("Entry deleted.", "ok");
           await loadEntries();
         });
         entriesBody.appendChild(tr);
       }
+      const entryCount = (payload.entries || []).length;
+      entryCountEl.textContent = `${entryCount} entr${entryCount === 1 ? "y" : "ies"}`;
     }
 
     async function saveEntry() {
-      saveMessage.textContent = "";
+      showMessage("Saving entry...");
       const rawValue = valueEl.value.trim();
       if (!rawValue) {
-        saveMessage.textContent = "Value must be valid JSON.";
+        showMessage("Value must be valid JSON.", "error");
         return;
       }
       let parsedValue;
       try {
         parsedValue = JSON.parse(rawValue);
       } catch {
-        saveMessage.textContent = "Value must be valid JSON.";
+        showMessage("Value must be valid JSON.", "error");
         return;
       }
       const payload = {
@@ -352,7 +600,7 @@ UI_HTML = """<!doctype html>
       };
       const authToken = normalizeToken();
       if (!authToken) {
-        saveMessage.textContent = "A valid OAuth token is required.";
+        showMessage("A valid OAuth token is required.", "error");
         return;
       }
       const response = await fetch("/api/contexts", {
@@ -365,10 +613,10 @@ UI_HTML = """<!doctype html>
       });
       const result = await response.json();
       if (!response.ok) {
-        saveMessage.textContent = result.error || "Failed to save entry.";
+        showMessage(result.error || "Failed to save entry.", "error");
         return;
       }
-      saveMessage.textContent = "Saved.";
+      showMessage("Saved.", "ok");
       await loadEntries();
     }
 

@@ -1,32 +1,50 @@
 # infinite-context-mcp
 
-Dockerized MCP context server with OAuth2 authentication for multiple AI agents.
+OAuth2-protected MCP context server for multiple AI agents.
 
-## What it provides
+---
 
-- OAuth2 client-credentials flow for AI-specific access tokens
-- Standard MCP tool interface over HTTP at `/mcp`
-- Private context namespaces per AI agent
-- Shared spaces that any authenticated AI can read and update
-- A visibility-change tool so an AI can move context from private to shared when a user asks
-- A Grok-focused connector descriptor at `/connectors/grok` while keeping the main interface generic for any AI client
+## What this service does
 
-## Run locally
+Think of this like a **shared notebook for AIs**:
+
+- each AI can have its own private notes
+- all AIs can also share notes in shared spaces
+- you can manage notes from:
+  - MCP API (`/mcp`)
+  - HTTP API (`/api/contexts`)
+  - browser UI (`/ui`)
+
+---
+
+## Quick start (copy/paste)
+
+### 1) Start the server
 
 ```bash
 python -m infinite_context_mcp
 ```
 
-## Environment variables
+Server defaults:
+- host: `127.0.0.1`
+- port: `8080`
 
-- `HOST` - server bind host, defaults to `127.0.0.1`
-- `PORT` - server bind port, defaults to `8080`
-- `DATA_PATH` - JSON persistence file, defaults to `data/contexts.json`
-- `OAUTH_SIGNING_KEY` - HMAC signing key for bearer tokens
-- `TOKEN_TTL_SECONDS` - token lifetime, defaults to `3600`
-- `MCP_CLIENTS` - JSON object mapping OAuth client IDs to secrets and agent IDs
+Open these in your browser:
+- Service info: `http://127.0.0.1:8080/`
+- UI: `http://127.0.0.1:8080/ui`
 
-Example:
+---
+
+## Environment variables (simple explanation)
+
+- `HOST` = where server listens (default `127.0.0.1`)
+- `PORT` = port number (default `8080`)
+- `DATA_PATH` = where data is saved (default `data/contexts.json`)
+- `OAUTH_SIGNING_KEY` = secret used to sign tokens
+- `TOKEN_TTL_SECONDS` = token lifetime in seconds (default `3600`)
+- `MCP_CLIENTS` = list of app login IDs, secrets, and scopes
+
+Example `MCP_CLIENTS`:
 
 ```json
 {
@@ -43,6 +61,88 @@ Example:
 }
 ```
 
+---
+
+## How to create a token (step-by-step, like you are 5)
+
+You need a token so the UI can talk to the server.
+
+Imagine this token is a **temporary wristband** that says:
+“yes, this person can read/write context data.”
+
+### Step A: choose a client
+
+From `MCP_CLIENTS` above, pick:
+- `client_id` (example: `grok`)
+- `client_secret` (example: `grok-secret`)
+
+### Step B: ask server for token
+
+Run:
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/oauth/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials&client_id=grok&client_secret=grok-secret"
+```
+
+You will get JSON like:
+
+```json
+{
+  "access_token": "YOUR_TOKEN_HERE",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "contexts.read contexts.write"
+}
+```
+
+Copy the value inside `access_token`.
+
+---
+
+## What to put where in the UI (`/ui`)
+
+Open `http://127.0.0.1:8080/ui`.
+
+### 1) “OAuth token”
+- paste `access_token` here
+
+### 2) “Visibility”
+- `private` = only one AI's private note
+- `shared` = note everyone can read
+
+### 3) “Agent ID”
+- required for `private` entries
+- leave empty for `shared`
+- must match a known AI id (example: `grok`, `copilot`)
+
+### 4) “Space”
+- group/folder name (example: `planning`, `handoff`)
+
+### 5) “Key”
+- note name inside the space (example: `summary`)
+
+### 6) “JSON value”
+- the actual data, must be valid JSON
+- example:
+
+```json
+{"status":"ready","owner":"grok"}
+```
+
+### 7) “Save entry”
+- click to create or update entry
+
+### 8) “Browse entries” area
+- **Filter by AI**: show only one AI’s entries
+- **Search**: text search in AI/space/key/value
+- **Refresh**: reload from server
+- **Edit** button: load row into form, change and save
+- **Delete** button: remove row
+
+---
+
 ## Docker
 
 ```bash
@@ -55,16 +155,18 @@ docker run --rm -p 8080:8080 \
   infinite-context-mcp
 ```
 
-Or use Docker Compose:
+Or with Docker Compose:
 
 ```bash
 # prefer storing these in a local .env file (not committed)
-# OAUTH_SIGNING_KEY=REPLACE_WITH_SECURE_KEY  # example key generation: openssl rand -base64 32
+# OAUTH_SIGNING_KEY=REPLACE_WITH_SECURE_KEY  # example: openssl rand -base64 32
 # MCP_CLIENTS={"grok":{"secret":"grok-secret","agent_id":"grok","scopes":["contexts.read","contexts.write"]}}
 # optional host-side port override (container stays on 8080)
 # export HOST_PORT=8080
 docker compose up --build
 ```
+
+---
 
 ## Main endpoints
 
@@ -76,18 +178,9 @@ docker compose up --build
 - `GET /connectors/grok`
 - `GET /health`
 
-## Human context manager UI
+`POST /api/contexts` and `PUT /api/contexts` both do upsert behavior.
 
-Open `/ui` in a browser to manage contexts directly.
-
-Features:
-- add/update entries in private or shared visibility
-- delete entries
-- filter by AI identity
-- free-text search over AI, space, key, and JSON value
-- API calls require a valid bearer token with `contexts.read` or `contexts.write` scope
-
-`POST /api/contexts` and `PUT /api/contexts` both perform upsert behavior.
+---
 
 ## MCP tools
 
