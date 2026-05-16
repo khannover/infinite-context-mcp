@@ -11,4 +11,7 @@ services:
       OAUTH_SIGNING_KEY: ${OAUTH_SIGNING_KEY:?Set OAUTH_SIGNING_KEY in your environment or .env file}
       MCP_CLIENTS: ${MCP_CLIENTS:?Set MCP_CLIENTS in your environment or .env file}
     volumes:
-      - ./data:/data
+      - mcp_data:/data
+
+volumes:
+  mcp_data:
