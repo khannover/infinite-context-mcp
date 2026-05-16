@@ -43,6 +43,7 @@ Open these in your browser:
 - `OAUTH_SIGNING_KEY` = secret used to sign tokens
 - `TOKEN_TTL_SECONDS` = token lifetime in seconds (default `3600`)
 - `MCP_CLIENTS` = list of app login IDs, secrets, and scopes
+- `GROK_PUBLIC_CLIENT_ENABLED` = when `true`, `/connectors/grok` uses a Grok-only public token endpoint so Grok can connect without entering a client secret
 
 Example `MCP_CLIENTS`:
 
@@ -98,6 +99,22 @@ You will get JSON like:
 ```
 
 Copy the value inside `access_token`.
+
+### Grok custom connector setup
+
+If Grok does not prompt for a client secret, set:
+
+```bash
+export GROK_PUBLIC_CLIENT_ENABLED=true
+```
+
+Then use your public connector URL, for example:
+
+```text
+https://your-server.example/connectors/grok
+```
+
+When this mode is enabled, the built-in Grok connector switches to a Grok-only token endpoint that can mint a bearer token without interactive secret entry. The regular `/oauth/token` endpoint still requires `client_id` and `client_secret` for existing confidential clients.
 
 ---
 
