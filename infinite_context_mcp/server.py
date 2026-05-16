@@ -236,6 +236,14 @@ UI_HTML = """<!doctype html>
         .replaceAll(">", "&gt;");
     }
 
+    function normalizedToken() {
+      const token = authTokenEl.value.trim();
+      if (!token || /[^A-Za-z0-9._-]/.test(token)) {
+        return "";
+      }
+      return token;
+    }
+
     function encodeEntry(entry) {
       const params = new URLSearchParams();
       params.set("visibility", entry.visibility);
@@ -248,10 +256,10 @@ UI_HTML = """<!doctype html>
     }
 
     async function loadEntries() {
-      const authToken = authTokenEl.value.trim();
+      const authToken = normalizedToken();
       if (!authToken) {
         entriesBody.innerHTML = "";
-        saveMessage.textContent = "Set an OAuth token to load entries.";
+        saveMessage.textContent = "Set a valid OAuth token to load entries.";
         return;
       }
       const params = new URLSearchParams();
@@ -304,9 +312,9 @@ UI_HTML = """<!doctype html>
         });
         tr.querySelector('[data-action="delete"]').addEventListener("click", async () => {
           if (!confirm("Delete this entry?")) return;
-          const authToken = authTokenEl.value.trim();
+          const authToken = normalizedToken();
           if (!authToken) {
-            saveMessage.textContent = "OAuth token is required.";
+            saveMessage.textContent = "A valid OAuth token is required.";
             return;
           }
           await fetch("/api/contexts?" + encodeEntry(entry), {
@@ -340,9 +348,9 @@ UI_HTML = """<!doctype html>
         key: keyEl.value.trim(),
         value: parsedValue
       };
-      const authToken = authTokenEl.value.trim();
+      const authToken = normalizedToken();
       if (!authToken) {
-        saveMessage.textContent = "OAuth token is required.";
+        saveMessage.textContent = "A valid OAuth token is required.";
         return;
       }
       const response = await fetch("/api/contexts", {

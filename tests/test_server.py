@@ -262,6 +262,7 @@ class ServerTestCase(unittest.TestCase):
         self.assertEqual(len(payload["entries"]), 1)
         self.assertEqual(payload["entries"][0]["agent_id"], "grok")
         self.assertEqual(payload["entries"][0]["visibility"], "private")
+        self.assertEqual([entry["key"] for entry in payload["entries"]], ["draft"])
         self.assertIn("grok", payload["available_ai"])
         self.assertIn("copilot", payload["available_ai"])
 
