@@ -58,7 +58,8 @@ docker run --rm -p 8080:8080 \
 Or use Docker Compose:
 
 ```bash
-export OAUTH_SIGNING_KEY='replace-with-a-long-random-secret'
+# replace this placeholder with your own secure random key
+export OAUTH_SIGNING_KEY='YOUR_SECURE_RANDOM_KEY_HERE'
 export MCP_CLIENTS='{"grok":{"secret":"grok-secret","agent_id":"grok","scopes":["contexts.read","contexts.write"]}}'
 docker compose up --build
 ```
