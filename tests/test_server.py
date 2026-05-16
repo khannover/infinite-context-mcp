@@ -253,6 +253,7 @@ class ServerTestCase(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(len(payload["entries"]), 1)
         self.assertEqual(payload["entries"][0]["agent_id"], "grok")
+        self.assertEqual(payload["entries"][0]["visibility"], "private")
         self.assertIn("grok", payload["available_ai"])
         self.assertIn("copilot", payload["available_ai"])
 
@@ -260,6 +261,7 @@ class ServerTestCase(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(len(payload["entries"]), 1)
         self.assertEqual(payload["entries"][0]["key"], "summary")
+        self.assertEqual(payload["entries"][0]["agent_id"], "copilot")
 
         status, _ = self.api_call(
             "DELETE",

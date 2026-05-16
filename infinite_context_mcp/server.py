@@ -256,10 +256,11 @@ UI_HTML = """<!doctype html>
 
       entriesBody.innerHTML = "";
       for (const entry of payload.entries || []) {
+        const agentDisplay = entry.agent_id ? entry.agent_id : "—";
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${escapeHtml(entry.visibility)}</td>
-          <td>${escapeHtml(entry.agent_id || "shared")}</td>
+          <td>${escapeHtml(agentDisplay)}</td>
           <td>${escapeHtml(entry.space)}</td>
           <td>${escapeHtml(entry.key)}</td>
           <td><pre>${escapeHtml(JSON.stringify(entry.value, null, 2))}</pre></td>
@@ -288,9 +289,14 @@ UI_HTML = """<!doctype html>
 
     async function saveEntry() {
       saveMessage.textContent = "";
+      const rawValue = valueEl.value.trim();
+      if (!rawValue) {
+        saveMessage.textContent = "Value must be valid JSON.";
+        return;
+      }
       let parsedValue;
       try {
-        parsedValue = JSON.parse(valueEl.value || "null");
+        parsedValue = JSON.parse(rawValue);
       } catch {
         saveMessage.textContent = "Value must be valid JSON.";
         return;
