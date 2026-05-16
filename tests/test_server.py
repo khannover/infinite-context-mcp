@@ -257,7 +257,7 @@ class ServerTestCase(unittest.TestCase):
         )
         self.assertEqual(status, 200)
 
-        status, payload = self.api_call("GET", "/api/contexts?ai=grok", token=token)
+        status, payload = self.api_call("GET", "/api/contexts?agent_id=grok", token=token)
         self.assertEqual(status, 200)
         self.assertEqual(len(payload["entries"]), 1)
         self.assertEqual(payload["entries"][0]["agent_id"], "grok")
@@ -279,7 +279,7 @@ class ServerTestCase(unittest.TestCase):
         )
         self.assertEqual(status, 200)
 
-        status, payload = self.api_call("GET", "/api/contexts?ai=grok", token=token)
+        status, payload = self.api_call("GET", "/api/contexts?agent_id=grok", token=token)
         self.assertEqual(status, 200)
         self.assertEqual(payload["entries"], [])
 

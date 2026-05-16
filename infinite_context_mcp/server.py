@@ -236,7 +236,7 @@ UI_HTML = """<!doctype html>
         .replaceAll(">", "&gt;");
     }
 
-    function normalizedToken() {
+    function normalizeToken() {
       const token = authTokenEl.value.trim();
       if (!token || /[^A-Za-z0-9._-]/.test(token)) {
         return "";
@@ -256,14 +256,14 @@ UI_HTML = """<!doctype html>
     }
 
     async function loadEntries() {
-      const authToken = normalizedToken();
+      const authToken = normalizeToken();
       if (!authToken) {
         entriesBody.innerHTML = "";
         saveMessage.textContent = "Set a valid OAuth token to load entries.";
         return;
       }
       const params = new URLSearchParams();
-      if (filterAiEl.value) params.set("ai", filterAiEl.value);
+      if (filterAiEl.value) params.set("agent_id", filterAiEl.value);
       if (searchQueryEl.value.trim()) params.set("q", searchQueryEl.value.trim());
       const response = await fetch("/api/contexts?" + params.toString(), {
         headers: { "Authorization": "Bearer " + authToken }
@@ -312,7 +312,7 @@ UI_HTML = """<!doctype html>
         });
         tr.querySelector('[data-action="delete"]').addEventListener("click", async () => {
           if (!confirm("Delete this entry?")) return;
-          const authToken = normalizedToken();
+          const authToken = normalizeToken();
           if (!authToken) {
             saveMessage.textContent = "A valid OAuth token is required.";
             return;
@@ -348,7 +348,7 @@ UI_HTML = """<!doctype html>
         key: keyEl.value.trim(),
         value: parsedValue
       };
-      const authToken = normalizedToken();
+      const authToken = normalizeToken();
       if (!authToken) {
         saveMessage.textContent = "A valid OAuth token is required.";
         return;
@@ -571,7 +571,7 @@ def create_handler(settings: Settings, store: ContextStore):
             if token_payload is None or not self._require_scope(token_payload, "contexts.read"):
                 return
             query = parse_qs(parsed.query)
-            ai_filter = query.get("ai", [""])[0].strip()
+            ai_filter = query.get("agent_id", query.get("ai", [""]))[0].strip()
             search_query = query.get("q", [""])[0].strip().lower()
             visibility_filter = query.get("visibility", [""])[0].strip()
 
