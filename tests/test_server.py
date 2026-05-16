@@ -34,6 +34,7 @@ class ServerTestCase(unittest.TestCase):
                     "scopes": ["contexts.read", "contexts.write"],
                 },
             },
+            grok_public_client_enabled=False,
         )
         self.server = create_server(self.settings)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
@@ -230,6 +231,59 @@ class ServerTestCase(unittest.TestCase):
         tools = self.mcp_call(token, "tools/list")
         tool_names = {tool["name"] for tool in tools["result"]["tools"]}
         self.assertIn("context_change_visibility", tool_names)
+
+    def test_grok_public_connector_can_issue_token_without_secret(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=1)
+        self.settings = Settings(
+            host="127.0.0.1",
+            port=0,
+            data_path=str(Path(self.temp_dir.name) / "contexts.json"),
+            signing_key="test-signing-key",
+            token_ttl_seconds=3600,
+            clients=self.settings.clients,
+            grok_public_client_enabled=True,
+        )
+        self.server = create_server(self.settings)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        self.base_url = f"http://127.0.0.1:{self.server.server_port}"
+        time.sleep(0.05)
+
+        with request.urlopen(f"{self.base_url}/connectors/grok") as response:
+            grok_connector = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(grok_connector["auth"]["token_url"], f"{self.base_url}/oauth/token/grok")
+        self.assertEqual(grok_connector["auth"]["client_id"], "grok")
+
+        encoded = parse.urlencode({"grant_type": "client_credentials"}).encode("utf-8")
+        req = request.Request(
+            f"{self.base_url}/oauth/token/grok/",
+            data=encoded,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with request.urlopen(req) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+
+        self.assertIn("access_token", payload)
+
+        tools = self.mcp_call(payload["access_token"], "tools/list")
+        tool_names = {tool["name"] for tool in tools["result"]["tools"]}
+        self.assertIn("context_change_visibility", tool_names)
+
+        encoded = parse.urlencode(
+            {"grant_type": "client_credentials", "client_id": "grok"}
+        ).encode("utf-8")
+        req = request.Request(
+            f"{self.base_url}/oauth/token",
+            data=encoded,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with self.assertRaises(HTTPError) as error:
+            request.urlopen(req)
+        self.assertEqual(error.exception.code, 401)
 
     def test_context_management_api_supports_search_filter_and_delete(self) -> None:
         token = self.token_for("grok", "grok-secret")

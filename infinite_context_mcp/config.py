@@ -22,6 +22,7 @@ class Settings:
     signing_key: str
     token_ttl_seconds: int
     clients: dict[str, dict[str, object]]
+    grok_public_client_enabled: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -36,4 +37,8 @@ class Settings:
             signing_key=os.environ.get("OAUTH_SIGNING_KEY", "local-dev-signing-key"),
             token_ttl_seconds=int(os.environ.get("TOKEN_TTL_SECONDS", "3600")),
             clients=clients,
+            grok_public_client_enabled=os.environ.get(
+                "GROK_PUBLIC_CLIENT_ENABLED", ""
+            ).lower()
+            in {"1", "true", "yes", "on"},
         )

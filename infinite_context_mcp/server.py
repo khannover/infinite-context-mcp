@@ -663,6 +663,9 @@ def create_handler(settings: Settings, store: ContextStore):
                 )
                 return
             if parsed.path == "/connectors/grok":
+                grok_token_url = f"{base_url}/oauth/token"
+                if settings.grok_public_client_enabled:
+                    grok_token_url = f"{base_url}/oauth/token/grok"
                 _json_response(
                     self,
                     HTTPStatus.OK,
@@ -671,7 +674,12 @@ def create_handler(settings: Settings, store: ContextStore):
                         "type": "custom",
                         "auth": {
                             "grant_type": "client_credentials",
-                            "token_url": f"{base_url}/oauth/token",
+                            "token_url": grok_token_url,
+                            **(
+                                {"client_id": "grok"}
+                                if settings.grok_public_client_enabled
+                                else {}
+                            ),
                         },
                         "mcp": _server_capabilities(base_url),
                     },
@@ -702,6 +710,9 @@ def create_handler(settings: Settings, store: ContextStore):
             parsed = urlparse(self.path)
             if parsed.path in {"/oauth/token", "/oauth/token/"}:
                 self._handle_token()
+                return
+            if parsed.path in {"/oauth/token/grok", "/oauth/token/grok/"}:
+                self._handle_grok_public_token()
                 return
             if parsed.path == "/mcp":
                 self._handle_mcp()
@@ -747,6 +758,42 @@ def create_handler(settings: Settings, store: ContextStore):
                     {"error": "invalid_client"},
                 )
                 return
+            self._issue_token(client_id, client)
+
+        def _handle_grok_public_token(self) -> None:
+            if not settings.grok_public_client_enabled:
+                _json_response(self, HTTPStatus.NOT_FOUND, {"error": "Not found"})
+                return
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length).decode("utf-8")
+            payload = parse_qs(raw)
+            grant_type = payload.get("grant_type", [""])[0]
+            if grant_type != "client_credentials":
+                _json_response(
+                    self,
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": "unsupported_grant_type"},
+                )
+                return
+            client_id = payload.get("client_id", ["grok"])[0]
+            if client_id != "grok":
+                _json_response(
+                    self,
+                    HTTPStatus.UNAUTHORIZED,
+                    {"error": "invalid_client"},
+                )
+                return
+            client = settings.clients.get("grok")
+            if not client:
+                _json_response(
+                    self,
+                    HTTPStatus.UNAUTHORIZED,
+                    {"error": "invalid_client"},
+                )
+                return
+            self._issue_token("grok", client)
+
+        def _issue_token(self, client_id: str, client: dict[str, object]) -> None:
             token = build_access_token(
                 client_id=client_id,
                 agent_id=str(client.get("agent_id", client_id)),
