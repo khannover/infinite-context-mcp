@@ -143,6 +143,11 @@ UI_HTML = """<!doctype html>
 <body>
   <h1>Infinite Context Manager</h1>
   <p class="muted">Manage shared and private contexts for all registered AIs.</p>
+  <div class="row">
+    <label class="grow">OAuth token
+      <input id="authToken" class="grow" placeholder="Paste bearer token (contexts.read/contexts.write)" />
+    </label>
+  </div>
 
   <h2>Create or Edit Entry</h2>
   <div class="row">
@@ -201,6 +206,7 @@ UI_HTML = """<!doctype html>
 
   <script>
     const visibilityEl = document.getElementById("visibility");
+    const authTokenEl = document.getElementById("authToken");
     const agentIdEl = document.getElementById("agentId");
     const spaceEl = document.getElementById("space");
     const keyEl = document.getElementById("key");
@@ -211,6 +217,10 @@ UI_HTML = """<!doctype html>
     const searchQueryEl = document.getElementById("searchQuery");
     const refreshBtn = document.getElementById("refreshBtn");
     const entriesBody = document.getElementById("entriesBody");
+    authTokenEl.value = localStorage.getItem("context_manager_token") || "";
+    authTokenEl.addEventListener("change", () => {
+      localStorage.setItem("context_manager_token", authTokenEl.value.trim());
+    });
 
     function updateAgentRequirement() {
       agentIdEl.disabled = visibilityEl.value === "shared";
@@ -238,11 +248,25 @@ UI_HTML = """<!doctype html>
     }
 
     async function loadEntries() {
+      const authToken = authTokenEl.value.trim();
+      if (!authToken) {
+        entriesBody.innerHTML = "";
+        saveMessage.textContent = "Set an OAuth token to load entries.";
+        return;
+      }
       const params = new URLSearchParams();
       if (filterAiEl.value) params.set("ai", filterAiEl.value);
       if (searchQueryEl.value.trim()) params.set("q", searchQueryEl.value.trim());
-      const response = await fetch("/api/contexts?" + params.toString());
+      const response = await fetch("/api/contexts?" + params.toString(), {
+        headers: { "Authorization": "Bearer " + authToken }
+      });
       const payload = await response.json();
+      if (!response.ok) {
+        entriesBody.innerHTML = "";
+        saveMessage.textContent = payload.error || "Failed to load entries.";
+        return;
+      }
+      saveMessage.textContent = "";
 
       const existingFilter = filterAiEl.value;
       filterAiEl.innerHTML = '<option value="">All</option>';
@@ -280,7 +304,15 @@ UI_HTML = """<!doctype html>
         });
         tr.querySelector('[data-action="delete"]').addEventListener("click", async () => {
           if (!confirm("Delete this entry?")) return;
-          await fetch("/api/contexts?" + encodeEntry(entry), { method: "DELETE" });
+          const authToken = authTokenEl.value.trim();
+          if (!authToken) {
+            saveMessage.textContent = "OAuth token is required.";
+            return;
+          }
+          await fetch("/api/contexts?" + encodeEntry(entry), {
+            method: "DELETE",
+            headers: { "Authorization": "Bearer " + authToken }
+          });
           await loadEntries();
         });
         entriesBody.appendChild(tr);
@@ -308,9 +340,17 @@ UI_HTML = """<!doctype html>
         key: keyEl.value.trim(),
         value: parsedValue
       };
+      const authToken = authTokenEl.value.trim();
+      if (!authToken) {
+        saveMessage.textContent = "OAuth token is required.";
+        return;
+      }
       const response = await fetch("/api/contexts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + authToken
+        },
         body: JSON.stringify(payload)
       });
       const result = await response.json();
@@ -468,22 +508,11 @@ def create_handler(settings: Settings, store: ContextStore):
             )
 
         def _handle_mcp(self) -> None:
-            auth = self.headers.get("Authorization", "")
-            if not auth.startswith("Bearer "):
-                _json_response(
-                    self,
-                    HTTPStatus.UNAUTHORIZED,
-                    {"error": "missing_bearer_token"},
-                )
-                return
-            try:
-                token_payload = verify_token(auth.split(" ", 1)[1], settings.signing_key)
-            except (ValueError, KeyError):
-                _json_response(
-                    self,
-                    HTTPStatus.UNAUTHORIZED,
-                    {"error": "invalid_token"},
-                )
+            token_payload = self._require_token(
+                missing_error="missing_bearer_token",
+                invalid_error="invalid_token",
+            )
+            if token_payload is None:
                 return
             request = _read_json(self)
             response = {
@@ -502,7 +531,37 @@ def create_handler(settings: Settings, store: ContextStore):
                 response["error"] = {"code": -32600, "message": str(error)}
             _json_response(self, HTTPStatus.OK, response)
 
+        def _require_token(
+            self,
+            *,
+            missing_error: str = "unauthorized",
+            invalid_error: str = "unauthorized",
+        ) -> dict[str, object] | None:
+            auth = self.headers.get("Authorization", "")
+            if not auth.startswith("Bearer "):
+                _json_response(self, HTTPStatus.UNAUTHORIZED, {"error": missing_error})
+                return None
+            try:
+                return verify_token(auth.split(" ", 1)[1], settings.signing_key)
+            except (ValueError, KeyError):
+                _json_response(self, HTTPStatus.UNAUTHORIZED, {"error": invalid_error})
+                return None
+
+        def _require_scope(self, token_payload: dict[str, object], required_scope: str) -> bool:
+            scopes = set(str(token_payload.get("scope", "")).split())
+            if required_scope in scopes:
+                return True
+            _json_response(
+                self,
+                HTTPStatus.FORBIDDEN,
+                {"error": f"missing_scope:{required_scope}"},
+            )
+            return False
+
         def _handle_contexts_list(self, parsed) -> None:
+            token_payload = self._require_token()
+            if token_payload is None or not self._require_scope(token_payload, "contexts.read"):
+                return
             query = parse_qs(parsed.query)
             ai_filter = query.get("ai", [""])[0].strip()
             search_query = query.get("q", [""])[0].strip().lower()
@@ -555,6 +614,9 @@ def create_handler(settings: Settings, store: ContextStore):
             )
 
         def _handle_contexts_upsert(self) -> None:
+            token_payload = self._require_token()
+            if token_payload is None or not self._require_scope(token_payload, "contexts.write"):
+                return
             payload = _read_json(self)
             try:
                 visibility = str(payload.get("visibility", "private"))
@@ -587,6 +649,9 @@ def create_handler(settings: Settings, store: ContextStore):
                 _json_response(self, HTTPStatus.BAD_REQUEST, {"error": str(error)})
 
         def _handle_contexts_delete(self, parsed) -> None:
+            token_payload = self._require_token()
+            if token_payload is None or not self._require_scope(token_payload, "contexts.write"):
+                return
             query = parse_qs(parsed.query)
             visibility = query.get("visibility", [""])[0].strip()
             space = query.get("space", [""])[0].strip()

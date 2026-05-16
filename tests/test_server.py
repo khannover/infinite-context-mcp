@@ -85,12 +85,15 @@ class ServerTestCase(unittest.TestCase):
         method: str,
         path: str,
         payload: dict[str, object] | None = None,
+        token: str | None = None,
     ) -> tuple[int, dict[str, object]]:
         data = None
         headers = {}
         if payload is not None:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         req = request.Request(
             f"{self.base_url}{path}",
             data=data,
@@ -211,6 +214,8 @@ class ServerTestCase(unittest.TestCase):
         self.assertIn("context_change_visibility", tool_names)
 
     def test_context_management_api_supports_search_filter_and_delete(self) -> None:
+        token = self.token_for("grok", "grok-secret")
+
         status, _ = self.api_call(
             "POST",
             "/api/contexts",
@@ -221,6 +226,7 @@ class ServerTestCase(unittest.TestCase):
                 "key": "draft",
                 "value": {"topic": "release"},
             },
+            token=token,
         )
         self.assertEqual(status, 200)
 
@@ -234,6 +240,7 @@ class ServerTestCase(unittest.TestCase):
                 "key": "summary",
                 "value": {"topic": "handoff"},
             },
+            token=token,
         )
         self.assertEqual(status, 200)
 
@@ -246,10 +253,11 @@ class ServerTestCase(unittest.TestCase):
                 "key": "announcement",
                 "value": {"topic": "release"},
             },
+            token=token,
         )
         self.assertEqual(status, 200)
 
-        status, payload = self.api_call("GET", "/api/contexts?ai=grok")
+        status, payload = self.api_call("GET", "/api/contexts?ai=grok", token=token)
         self.assertEqual(status, 200)
         self.assertEqual(len(payload["entries"]), 1)
         self.assertEqual(payload["entries"][0]["agent_id"], "grok")
@@ -257,7 +265,7 @@ class ServerTestCase(unittest.TestCase):
         self.assertIn("grok", payload["available_ai"])
         self.assertIn("copilot", payload["available_ai"])
 
-        status, payload = self.api_call("GET", "/api/contexts?q=handoff")
+        status, payload = self.api_call("GET", "/api/contexts?q=handoff", token=token)
         self.assertEqual(status, 200)
         self.assertEqual(len(payload["entries"]), 1)
         self.assertEqual(payload["entries"][0]["key"], "summary")
@@ -266,12 +274,18 @@ class ServerTestCase(unittest.TestCase):
         status, _ = self.api_call(
             "DELETE",
             "/api/contexts?visibility=private&agent_id=grok&space=planning&key=draft",
+            token=token,
         )
         self.assertEqual(status, 200)
 
-        status, payload = self.api_call("GET", "/api/contexts?ai=grok")
+        status, payload = self.api_call("GET", "/api/contexts?ai=grok", token=token)
         self.assertEqual(status, 200)
         self.assertEqual(payload["entries"], [])
+
+    def test_context_management_api_requires_authentication(self) -> None:
+        status, payload = self.api_call("GET", "/api/contexts")
+        self.assertEqual(status, 401)
+        self.assertEqual(payload["error"], "unauthorized")
 
     def test_ui_page_is_exposed(self) -> None:
         with request.urlopen(f"{self.base_url}/ui") as response:

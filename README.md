@@ -74,6 +74,9 @@ Features:
 - delete entries
 - filter by AI identity
 - free-text search over AI, space, key, and JSON value
+- API calls require a valid bearer token with `contexts.read` or `contexts.write` scope
+
+`POST /api/contexts` and `PUT /api/contexts` both perform upsert behavior.
 
 ## MCP tools
 
