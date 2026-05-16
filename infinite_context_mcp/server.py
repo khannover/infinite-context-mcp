@@ -775,7 +775,7 @@ def create_handler(settings: Settings, store: ContextStore):
                     {"error": "unsupported_grant_type"},
                 )
                 return
-            client_id = payload.get("client_id", ["grok"])[0] or "grok"
+            client_id = payload.get("client_id", ["grok"])[0]
             if client_id != "grok":
                 _json_response(
                     self,
