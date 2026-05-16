@@ -157,7 +157,7 @@ UI_HTML = """<!doctype html>
         <option value="shared">shared</option>
       </select>
     </label>
-    <label>AI (required for private)
+    <label>Agent ID (required for private)
       <input id="agentId" placeholder="e.g. grok" />
     </label>
     <label class="grow">Space
@@ -238,7 +238,7 @@ UI_HTML = """<!doctype html>
 
     function normalizeToken() {
       const token = authTokenEl.value.trim();
-      if (!token || /[^A-Za-z0-9._-]/.test(token)) {
+      if (!token || !/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/.test(token)) {
         return "";
       }
       return token;
@@ -571,7 +571,7 @@ def create_handler(settings: Settings, store: ContextStore):
             if token_payload is None or not self._require_scope(token_payload, "contexts.read"):
                 return
             query = parse_qs(parsed.query)
-            ai_filter = query.get("agent_id", query.get("ai", [""]))[0].strip()
+            ai_filter = query.get("agent_id", [""])[0].strip()
             search_query = query.get("q", [""])[0].strip().lower()
             visibility_filter = query.get("visibility", [""])[0].strip()
 
